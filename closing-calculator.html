@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dennette's Closing Scheduler</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1a2744;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --cream: #faf8f3;
+    --white: #ffffff;
+    --gray: #6b7280;
+    --light-gray: #f0ede6;
+    --green: #2d7a4f;
+    --red: #b84040;
+    --shadow: 0 4px 24px rgba(26,39,68,0.13);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--cream);
+    min-height: 100vh;
+    color: var(--navy);
+  }
+
+  header {
+    background: var(--navy);
+    color: var(--white);
+    padding: 22px 24px 18px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.75rem;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    color: #a0aec0;
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  .container {
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px 22px;
+    margin-bottom: 18px;
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--light-gray);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], input[type="date"], input[type="time"] {
+    width: 100%;
+    padding: 13px 14px;
+    border: 2px solid var(--light-gray);
+    border-radius: 9px;
+    font-family: 'Lato', sans-serif;
+    font-size: 1rem;
+    color: var(--navy);
+    background: var(--cream);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    margin-bottom: 6px;
+  }
+
+  input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+    background: var(--white);
+  }
+
+  .field-wrap { margin-bottom: 14px; }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .input-row input { margin-bottom: 0; flex: 1; }
+
+  .mic-btn {
+    background: var(--navy);
+    border: none;
+    border-radius: 9px;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    transition: background 0.2s, transform 0.1s;
+    flex-shrink: 0;
+  }
+
+  .mic-btn:hover { background: var(--gold); transform: scale(1.05); }
+  .mic-btn.listening { background: var(--red); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(184,64,64,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(184,64,64,0); }
+  }
+
+  .hint { font-size: 0.78rem; color: var(--gray); font-style: italic; margin-bottom: 16px; }
+
+  /* Miles lookup status */
+  .miles-status {
+    align-items: center;
+    gap: 8px;
+    padding: 10px 13px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    display: none;
+  }
+  .miles-status.vis { display: flex; }
+  .miles-status.loading { background:#f0f4ff; color:var(--navy); border:1px solid #c5d0f0; }
+  .miles-status.found  { background:#edfaf3; color:var(--green); border:1px solid #a3d9bc; font-weight:700; }
+  .miles-status.error  { background:#fff0f0; color:var(--red);   border:1px solid #f5c0c0; }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid #c5d0f0;
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Lato', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-primary { background: var(--gold); color: var(--navy); margin-top: 12px; }
+  .btn-primary:hover:not(:disabled) { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(201,168,76,0.3); }
+
+  .btn-success { background: var(--green); color: var(--white); margin-top: 8px; }
+  .btn-success:hover:not(:disabled) { background: #358f5c; transform: translateY(-1px); }
+
+  .btn-danger { background: var(--red); color: var(--white); margin-top: 8px; }
+  .btn-danger:hover { background: #c94b4b; }
+
+  .btn-outline { background: transparent; border: 2px solid var(--navy); color: var(--navy); margin-top: 8px; }
+  .btn-outline:hover { background: var(--navy); color: var(--white); }
+
+  /* Result box */
+  .result-box {
+    background: linear-gradient(135deg, var(--navy) 0%, #243360 100%);
+    color: var(--white);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-top: 16px;
+    display: none;
+  }
+  .result-box.show { display: block; animation: fadeIn 0.35s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .result-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: #a0aec0; margin-bottom: 4px; }
+  .result-town { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--gold); margin-bottom: 12px; }
+
+  .result-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.92rem;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    color: #d1d9e8;
+  }
+
+  .result-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-top: 10px;
+    color: var(--gold-light);
+    font-family: 'Playfair Display', serif;
+  }
+
+  .result-action-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .result-action-row .btn { flex: 1; margin: 0; }
+
+  /* Schedule section */
+  .schedule-section { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.12); }
+  .schedule-section.show { display: block; animation: fadeIn 0.3s ease; }
+  .schedule-section label { color: #a0aec0; }
+  .schedule-section input {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+    color: var(--white);
+    color-scheme: dark;
+    margin-bottom: 14px;
+  }
+  .schedule-section input:focus { border-color: var(--gold); background: rgba(255,255,255,0.12); }
+
+  .date-range-note {
+    background: rgba(201,168,76,0.12);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.83rem;
+    color: var(--gold-light);
+    margin-bottom: 14px;
+  }
+
+  /* Appointments */
+  .appt-item {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--gold);
+    box-shadow: 0 2px 8px rgba(26,39,68,0.08);
+    position: relative;
+  }
+  .appt-town { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--navy); }
+  .appt-meta { font-size: 0.83rem; color: var(--gray); margin-top: 3px; }
+  .appt-fee { font-size: 1.05rem; font-weight: 700; color: var(--green); margin-top: 6px; }
+  .appt-delete {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; font-size: 1.1rem;
+    cursor: pointer; color: #ccc; transition: color 0.2s;
+  }
+  .appt-delete:hover { color: var(--red); }
+
+  .empty-msg { text-align: center; color: var(--gray); font-size: 0.9rem; padding: 20px 0; font-style: italic; }
+
+  /* Tabs */
+  .tab-row { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab-btn {
+    flex: 1; padding: 10px;
+    border: 2px solid var(--light-gray);
+    border-radius: 9px;
+    background: var(--white);
+    font-family: 'Lato', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--gray);
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .tab-btn.active { background: var(--navy); border-color: var(--navy); color: var(--gold); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Status bar */
+  .status-bar {
+    background: var(--navy); color: var(--gold);
+    font-size: 0.82rem; padding: 8px 16px;
+    text-align: center; font-weight: 700;
+    letter-spacing: 0.04em; display: none;
+  }
+  .status-bar.show { display: block; }
+
+  @media (max-width: 400px) {
+    header h1 { font-size: 1.4rem; }
+    .container { padding: 14px 10px 30px; }
+    .card { padding: 18px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 Dennette's Closing Scheduler</h1>
+  <p>Loan Closing Fee Calculator &amp; Appointment Book</p>
+</header>
+
+<div id="statusBar" class="status-bar"></div>
+
+<div class="container">
+
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('calc', this)">💰 Calculate</button>
+    <button class="tab-btn" onclick="showTab('appts', this)">📅 Appointments</button>
+  </div>
+
+  <!-- CALCULATOR TAB -->
+  <div id="tab-calc" class="tab-content active">
+    <div class="card">
+      <div class="card-title">📍 Where is the closing?</div>
+
+      <label>Town / City Name</label>
+      <div class="input-row">
+        <input type="text" id="townInput" placeholder="e.g., Woodward, OK"
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter') lookupMiles()" />
+        <button class="mic-btn" id="micBtn" onclick="startVoice()" title="Tap to speak the town name">🎤</button>
+      </div>
+      <div class="hint">Type the town name and tap the button below — or tap 🎤 to speak it</div>
+
+      <!-- Miles lookup status -->
+      <div class="miles-status loading" id="milesLoading">
+        <div class="spinner"></div>&nbsp; Looking up driving distance from Enid…
+      </div>
+      <div class="miles-status found" id="milesFound">
+        <span>✅</span>&nbsp;<span id="milesFoundText"></span>
+      </div>
+      <div class="miles-status error" id="milesError">
+        <span>⚠️</span>&nbsp;<span id="milesErrorText">Could not find that town.</span>
+      </div>
+
+      <button class="btn btn-primary" onclick="lookupMiles()" id="lookupBtn">
+        🗺️ Get Miles &amp; Calculate Fee
+      </button>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-box" id="resultBox">
+      <div class="result-title">Fee Quote for</div>
+      <div class="result-town" id="resultTown">—</div>
+
+      <div class="result-line"><span>Base closing fee</span><span>$100.00</span></div>
+      <div class="result-line" id="mileageLine"><span>—</span><span>—</span></div>
+      <div class="result-total"><span>Total Quote</span><span id="totalFee">$0.00</span></div>
+
+      <div class="result-action-row">
+        <button class="btn btn-success" onclick="showSchedule()">✅ Client Accepted — Schedule It</button>
+        <button class="btn btn-danger" style="font-size:0.88rem;" onclick="resetAll()">❌ Declined</button>
+      </div>
+
+      <!-- SCHEDULE SECTION -->
+      <div class="schedule-section" id="scheduleSection">
+        <div class="date-range-note">📆 Closings are typically 7–10 days out. Pick any date that works.</div>
+
+        <label>Closing Date</label>
+        <input type="date" id="closingDate" />
+
+        <label>Closing Time</label>
+        <input type="time" id="closingTime" />
+
+        <label>Client / Company (optional)</label>
+        <input type="text" id="clientName" placeholder="e.g., First National Title Co." />
+
+        <button class="btn btn-success" style="margin:0; margin-top:4px;" onclick="bookAppointment()">
+          📌 Save to Appointment Book
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPOINTMENTS TAB -->
+  <div id="tab-appts" class="tab-content">
+    <div class="card">
+      <div class="card-title">📅 Upcoming Appointments</div>
+      <div id="apptList"><div class="empty-msg">No appointments yet.</div></div>
+      <button class="btn btn-outline" style="margin-top:12px;" onclick="clearOldAppts()">🧹 Clear Past Appointments</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const BASE_FEE = 100;
+  const RATE = 0.62;
+  // Enid, OK
+  const ORIGIN_LAT = 36.3956;
+  const ORIGIN_LNG = -97.8784;
+
+  let currentTown = '';
+  let currentMiles = 0;
+  let currentTotal = 0;
+
+  // ---- Tabs ----
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'appts') renderAppointments();
+  }
+
+  // ---- Mile status helpers ----
+  function hideMilesStatus() {
+    ['milesLoading','milesFound','milesError'].forEach(id => {
+      document.getElementById(id).classList.remove('vis');
+    });
+  }
+  function showMilesStatus(type) {
+    hideMilesStatus();
+    document.getElementById('miles' + type[0].toUpperCase() + type.slice(1)).classList.add('vis');
+  }
+
+  // ---- Main lookup ----
+  async function lookupMiles() {
+    const town = document.getElementById('townInput').value.trim();
+    if (!town) { showStatus('⚠️ Please enter a town name first.', 2500); return; }
+
+    document.getElementById('resultBox').classList.remove('show');
+    document.getElementById('scheduleSection').classList.remove('show');
+    hideMilesStatus();
+    showMilesStatus('loading');
+    document.getElementById('lookupBtn').disabled = true;
+
+    try {
+      // 1. Geocode with Nominatim (free, no key)
+      let destLat, destLng, resolvedName;
+
+      // Try with Oklahoma first, then without
+      for (const query of [town + ', Oklahoma, USA', town + ', USA']) {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=3&countrycodes=us`,
+          { headers: { 'Accept-Language': 'en-US', 'User-Agent': 'DennetteClosingApp/1.0' } }
+        );
+        const data = await res.json();
+        if (data.length > 0) {
+          destLat = parseFloat(data[0].lat);
+          destLng = parseFloat(data[0].lon);
+          // Build clean display name
+          const parts = data[0].display_name.split(',');
+          resolvedName = parts.slice(0, 2).map(s => s.trim()).join(', ');
+          break;
+        }
+      }
+
+      if (!destLat) {
+        throw new Error('Town not found. Try adding ", OK" (e.g., "Ponca City, OK").');
+      }
+
+      // 2. Driving distance via OSRM (free, no key)
+      const routeRes = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${ORIGIN_LNG},${ORIGIN_LAT};${destLng},${destLat}?overview=false`
+      );
+      const routeData = await routeRes.json();
+
+      if (!routeData.routes || !routeData.routes.length) {
+        throw new Error('Could not calculate a driving route. Check the town name and try again.');
+      }
+
+      const miles = Math.round((routeData.routes[0].distance / 1609.34) * 10) / 10;
+
+      document.getElementById('milesFoundText').textContent = `${miles} miles one-way to ${resolvedName}`;
+      showMilesStatus('found');
+
+      doCalculate(resolvedName, miles);
+
+    } catch (err) {
+      document.getElementById('milesErrorText').textContent = err.message || 'Could not look up that town. Check the spelling and try again.';
+      showMilesStatus('error');
+    } finally {
+      document.getElementById('lookupBtn').disabled = false;
+    }
+  }
+
+  // ---- Calculate fee ----
+  function doCalculate(displayName, miles) {
+    const mileageFee = miles * RATE * 2; // round trip
+    const total = BASE_FEE + mileageFee;
+
+    currentTown = displayName;
+    currentMiles = miles;
+    currentTotal = total;
+
+    document.getElementById('resultTown').textContent = displayName;
+    document.getElementById('mileageLine').innerHTML =
+      `<span>Mileage (${miles} mi × 2 × $${RATE.toFixed(2)})</span><span>$${mileageFee.toFixed(2)}</span>`;
+    document.getElementById('totalFee').textContent = '$' + total.toFixed(2);
+
+    const box = document.getElementById('resultBox');
+    box.classList.add('show');
+    document.getElementById('scheduleSection').classList.remove('show');
+
+    // Set date defaults
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 14);
+    const fmt = d => d.toISOString().split('T')[0];
+    const dateEl = document.getElementById('closingDate');
+    dateEl.value = fmt(tomorrow);
+    dateEl.min = fmt(tomorrow);
+    dateEl.max = fmt(maxDate);
+
+    setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  }
+
+  // ---- Show schedule section ----
+  function showSchedule() {
+    document.getElementById('scheduleSection').classList.add('show');
+    setTimeout(() => document.getElementById('closingDate').scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  }
+
+  // ---- Book appointment ----
+  function bookAppointment() {
+    const date = document.getElementById('closingDate').value;
+    const time = document.getElementById('closingTime').value;
+    const client = document.getElementById('clientName').value.trim() || 'Unknown Company';
+    if (!date) { showStatus('⚠️ Please pick a closing date.', 2500); return; }
+    if (!time) { showStatus('⚠️ Please pick a closing time.', 2500); return; }
+
+    const appts = getAppts();
+    appts.push({ id: Date.now(), town: currentTown, miles: currentMiles, total: currentTotal, date, time, client });
+    saveAppts(appts);
+    showStatus('✅ Appointment saved for ' + currentTown + '!', 3000);
+    resetAll();
+  }
+
+  // ---- Reset ----
+  function resetAll() {
+    document.getElementById('townInput').value = '';
+    document.getElementById('clientName').value = '';
+    document.getElementById('resultBox').classList.remove('show');
+    document.getElementById('scheduleSection').classList.remove('show');
+    hideMilesStatus();
+  }
+
+  // ---- Storage ----
+  function getAppts() {
+    try { return JSON.parse(localStorage.getItem('dennette_appts') || '[]'); } catch { return []; }
+  }
+  function saveAppts(a) { localStorage.setItem('dennette_appts', JSON.stringify(a)); }
+
+  function renderAppointments() {
+    const appts = getAppts().sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time));
+    const list = document.getElementById('apptList');
+    if (!appts.length) { list.innerHTML = '<div class="empty-msg">No appointments yet.</div>'; return; }
+    list.innerHTML = appts.map(a => {
+      const dt = new Date(a.date + 'T' + a.time);
+      const dateStr = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+      const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      const isPast = dt < new Date();
+      return `<div class="appt-item" style="${isPast ? 'opacity:0.5;border-left-color:#bbb;' : ''}">
+        <button class="appt-delete" onclick="deleteAppt(${a.id})" title="Remove">🗑</button>
+        <div class="appt-town">${a.town}${isPast ? ' <small style="color:#999;font-size:0.7rem;">(past)</small>' : ''}</div>
+        <div class="appt-meta">📅 ${dateStr} &nbsp;⏰ ${timeStr}</div>
+        <div class="appt-meta" style="margin-top:2px;">🏢 ${a.client}</div>
+        <div class="appt-fee">💲${a.total.toFixed(2)} &nbsp;·&nbsp; ${a.miles} mi one-way</div>
+      </div>`;
+    }).join('');
+  }
+
+  function deleteAppt(id) {
+    if (!confirm('Remove this appointment?')) return;
+    saveAppts(getAppts().filter(a => a.id !== id));
+    renderAppointments();
+  }
+
+  function clearOldAppts() {
+    const now = new Date();
+    saveAppts(getAppts().filter(a => new Date(a.date + 'T' + a.time) >= now));
+    renderAppointments();
+    showStatus('🧹 Past appointments cleared.', 2000);
+  }
+
+  // ---- Top status bar ----
+  function showStatus(msg, duration) {
+    const bar = document.getElementById('statusBar');
+    bar.textContent = msg;
+    bar.classList.add('show');
+    setTimeout(() => bar.classList.remove('show'), duration);
+  }
+
+  // ---- Voice recognition ----
+  let recognition = null;
+
+  function startVoice() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showStatus('⚠️ Voice not supported here. Use Chrome on PC or iPhone.', 3500); return; }
+
+    const btn = document.getElementById('micBtn');
+    if (recognition) { recognition.stop(); recognition = null; btn.classList.remove('listening'); return; }
+
+    recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    btn.classList.add('listening');
+    showStatus('🎤 Listening… say the town name', 4000);
+
+    recognition.onresult = (e) => {
+      let said = e.results[0][0].transcript;
+      said = said.replace(/\b(go to|drive to|closing in|closing at|schedule|calculate|fee for|town of|city of|a closing in)\b/gi, '').trim();
+      document.getElementById('townInput').value = said;
+      btn.classList.remove('listening');
+      recognition = null;
+      showStatus('✅ Heard: "' + said + '" — tap Get Miles to continue', 3000);
+    };
+    recognition.onerror = () => {
+      btn.classList.remove('listening');
+      recognition = null;
+      showStatus("⚠️ Couldn't hear clearly — please try again.", 2500);
+    };
+    recognition.onend = () => { btn.classList.remove('listening'); recognition = null; };
+    recognition.start();
+  }
+
+  // Init
+  renderAppointments();
+</script>
+</body>
+</html>
